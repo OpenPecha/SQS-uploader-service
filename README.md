@@ -1,12 +1,12 @@
-# Celery Microservice - FastAPI with SQS Consumer
+# SQS Uploader Service
 
-A FastAPI-based microservice that processes segment relationships from AWS SQS queue, stores results in PostgreSQL, and queries Neo4j for related segments.
+A FastAPI-based microservice that uploads segment processing tasks to AWS SQS queue. This service provides RESTful API endpoints to create and track segment relationship jobs by sending messages to SQS for processing.
 
 ## 🌟 Features
 
 - **FastAPI Web Server**: RESTful API with automatic documentation
-- **SQS Consumer**: Background thread consuming messages from AWS SQS
-- **Database Integration**: PostgreSQL for task storage, Neo4j for graph queries
+- **SQS Uploader**: Sends messages to AWS SQS queue in batches
+- **Database Integration**: PostgreSQL for job tracking, Neo4j for graph queries
 - **Docker Ready**: Production-ready Dockerfile and docker-compose
 - **Health Checks**: Built-in health monitoring endpoints
 - **Auto-reload**: Development mode with hot reload
@@ -18,22 +18,22 @@ A FastAPI-based microservice that processes segment relationships from AWS SQS q
 │         FastAPI Application             │
 ├─────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────────┐  │
-│  │   REST API  │  │  SQS Consumer   │  │
-│  │  Endpoints  │  │ (Background     │  │
-│  │             │  │    Thread)      │  │
+│  │   REST API  │  │   SQS Uploader  │  │
+│  │  Endpoints  │  │   (Batch Send)  │  │
+│  │             │  │                 │  │
 │  └─────────────┘  └─────────────────┘  │
 │         │                  │            │
 └─────────┼──────────────────┼────────────┘
           │                  │
           ▼                  ▼
     ┌──────────┐      ┌──────────┐
-    │PostgreSQL│      │  Neo4j   │
+    │PostgreSQL│      │ AWS SQS  │
     └──────────┘      └──────────┘
-                   ▲
-                   │
-             ┌─────────┐
-             │ AWS SQS │
-             └─────────┘
+          ▲
+          │
+    ┌──────────┐
+    │  Neo4j   │
+    └──────────┘
 ```
 
 ## 🚀 Quick Start
@@ -127,9 +127,19 @@ Once running, access the API at `http://localhost:8080`
 - `GET /docs` - Interactive API documentation (Swagger UI)
 - `GET /redoc` - Alternative API documentation
 
-### Custom Endpoints
+### Relation Endpoints
 
-See `/docs` for complete API documentation with all available endpoints.
+- `POST /relation/{manifestation_id}` - Create a segment relation job and upload tasks to SQS
+- `GET /relation/{job_id}/status` - Get job status
+- `GET /relation/{manifestation_id}/all-relations` - Get all completed segment relations
+
+## 📊 How It Works
+
+1. **Create Job**: Client sends a POST request with manifestation_id
+2. **Fetch Segments**: Service fetches all segments from Neo4j for the manifestation
+3. **Create Database Records**: Creates job and task records in PostgreSQL
+4. **Upload to SQS**: Sends messages to SQS in batches (max 10 per batch)
+5. **Track Progress**: Clients can poll job status using the job_id
 
 ## 📊 Monitoring
 
@@ -150,8 +160,7 @@ docker-compose logs -f web
 
 ```json
 {
-  "status": "healthy",
-  "sqs_consumer_running": true
+  "status": "healthy"
 }
 ```
 
@@ -189,16 +198,16 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions for:
 
 **Build Production Image:**
 ```bash
-docker build -t celery-microservice:latest .
+docker build -t sqs-uploader-service:latest .
 ```
 
 **Run Production Container:**
 ```bash
 docker run -d \
-  --name fastapi-app \
+  --name sqs-uploader \
   -p 8080:8080 \
   --env-file .env \
-  celery-microservice:latest
+  sqs-uploader-service:latest
 ```
 
 ## 📁 Project Structure
@@ -207,9 +216,7 @@ docker run -d \
 .
 ├── app/
 │   ├── main.py              # FastAPI application
-│   ├── sqs_service.py       # SQS consumer
-│   ├── tasks.py             # Task processing logic
-│   ├── relation.py          # API endpoints
+│   ├── relation.py          # API endpoints (SQS upload logic)
 │   ├── config.py            # Configuration
 │   ├── models.py            # Pydantic models
 │   ├── neo4j_database.py    # Neo4j integration
@@ -245,9 +252,9 @@ make setup     # Full setup from scratch
 
 ### Common Issues
 
-**1. SQS Consumer Not Running**
+**1. SQS Upload Failed**
 ```bash
-# Check logs for SQS startup messages
+# Check logs for SQS errors
 docker-compose logs web | grep "SQS"
 
 # Verify AWS credentials
@@ -292,7 +299,7 @@ make test
 
 # Manual API testing
 curl -X GET http://localhost:8080/health
-curl -X GET http://localhost:8080/
+curl -X POST http://localhost:8080/relation/{manifestation_id}
 ```
 
 ## 🔐 Security Notes
@@ -332,4 +339,3 @@ For issues or questions:
 ---
 
 **Made with ❤️ using FastAPI, Docker, and AWS SQS**
-
