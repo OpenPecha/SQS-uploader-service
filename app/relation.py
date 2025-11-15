@@ -132,6 +132,9 @@ def get_all_segmentation(manifestation_id: str) -> SegmentationResponse:
 @relation.post("/{manifestation_id}")
 def get_all_segments_relation_by_manifestation_id(manifestation_id: str):
     try:
+        print("CHECKING IF MANIFESTATION ALREADY EXISTS")
+        _check_if_manifestation_alreay_exists(manifestation_id=manifestation_id)
+        print("MANIFESTATION DOES NOT EXIST")
         # Get all segments from the manifestation
         all_segments = get_all_segmentation(manifestation_id=manifestation_id)
         
@@ -156,6 +159,18 @@ def get_all_segments_relation_by_manifestation_id(manifestation_id: str):
     except Exception as e:
         logger.error(f"Error in get_all_segments_relation_by_manifestation_id: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get all segments relation by manifestation, Error: {str(e)}")
+
+def _check_if_manifestation_alreay_exists(manifestation_id: str):
+    try:
+        with SessionLocal() as session:
+            root_job = session.query(RootJob).filter(RootJob.manifestation_id == manifestation_id).first()
+            if root_job:
+                raise HTTPException(status_code=400, detail="Manifestation already exists with job id: " + str(root_job.job_id))
+    except HTTPException:
+        # Re-raise HTTPException as-is (don't wrap it)
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to check if manifestation already exists, Database read error, Error: " + str(e))
 
 def get_segments_relation(request: SegmentsRelationRequest):
 
