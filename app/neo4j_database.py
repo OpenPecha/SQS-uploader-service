@@ -32,7 +32,9 @@ def get_neo4j_driver():
 class Neo4JDatabase:
 
     def __init__(self, neo4j_uri: str = None, neo4j_auth: tuple = None):
-        # Use singleton driver for better concurrency handling
+        """
+        Initialize the Neo4JDatabase instance
+        """
         if neo4j_uri and neo4j_auth:
             self.__driver = GraphDatabase.driver(neo4j_uri, auth=neo4j_auth)
         else:
@@ -46,6 +48,9 @@ class Neo4JDatabase:
         return self.__driver.session()
 
     def _get_alignment_pairs_by_manifestation(self, manifestation_id: str) -> list[dict]:
+        """
+        Get alignment annotation pair by manifestation id
+        """
         with self.get_session() as session:
             result = session.execute_read(
                 lambda tx: tx.run(
@@ -75,9 +80,20 @@ class Neo4JDatabase:
                     manifestation_ids=manifestation_ids
                 ))
             )
-            return {record["manifestation_id"]: record["expression_id"] for record in result}
+            return {
+                record["manifestation_id"]: record["expression_id"]
+                for record in result
+            }
 
-    def _get_aligned_segments(self, alignment_1_id: str, start:int, end:int) -> list[dict]:
+    def _get_aligned_segments(
+        self,
+        alignment_1_id: str,
+        start: int,
+        end: int
+    ) -> list[dict]:
+        """
+        Get aligned segments by alignment annotation id and span
+        """
         with self.get_session() as session:
             result = session.execute_read(
                 lambda tx: tx.run(
@@ -96,16 +112,30 @@ class Neo4JDatabase:
             ]
 
     def get_manifestation_id_by_annotation_id(self, annotation_id: str) -> str:
+        """
+        Fetch manifestation id by annotation id
+        """
         with self.__driver.session() as session:
             record = session.execute_read(
-                lambda tx: tx.run(Queries.manifestations["fetch_by_annotation_id"], annotation_id=annotation_id).single()
+                lambda tx: tx.run(
+                    Queries.manifestations["fetch_by_annotation_id"],
+                    annotation_id=annotation_id).single()
             )
             if record is None:
                 return None
             d = record.data()
             return d["manifestation_id"]
 
-    def _get_overlapping_segments(self, manifestation_id: str, start:int, end:int) -> list[dict]:
+    def _get_overlapping_segments(
+        self,
+        manifestation_id: str,
+        start: int,
+        end: int
+    ) -> list[dict]:
+        """
+        Getting overlapping segments by manifestation id and span
+        on segmentation annotation
+        """
         with self.get_session() as session:
             result = session.execute_read(
                 lambda tx: tx.run(
@@ -118,13 +148,26 @@ class Neo4JDatabase:
             return [
                 {
                     "segment_id": record["segment_id"],
-                    "span": {"start": record["span_start"], "end": record["span_end"]},
+                    "span": {
+                        "start": record["span_start"],
+                        "end": record["span_end"]
+                    },
                 }
                 for record in result
             ]
 
-    def _get_related_segments(self, manifestation_id:str, start:int, end:int, transform:bool = False) -> list[dict]:
-        
+
+    def _get_related_segments(
+        self,
+        manifestation_id: str,
+        start: int,
+        end: int,
+        transform: bool = False
+    ) -> list[dict]:
+        """
+        Getting related segments by manifestation id and span
+        on alignment annotation
+        """
         # Use local variables instead of globals to prevent race conditions
         transformed_related_segments = []
         untransformed_related_segments = []
@@ -132,11 +175,21 @@ class Neo4JDatabase:
         visited_manifestations = set()  # Track visited manifestations to prevent infinite loops
 
         queue = queue_module.Queue()
-        queue.put({"manifestation_id": manifestation_id, "span_start": start, "span_end": end})
+        queue.put(
+            {
+                "manifestation_id": manifestation_id,
+                "span_start": start,
+                "span_end": end
+            }
+        )
         visited_manifestations.add(manifestation_id)  # Mark initial manifestation as visited
-        
-        logger.info(f"Starting BFS traversal from manifestation {manifestation_id}")
-        
+
+        logger.info(
+            "Starting BFS traversal from manifestation %s with span [%d, %d)",
+            manifestation_id,
+            start,
+            end
+        )
         while not queue.empty():
             item = queue.get()  # get() removes and returns the item (like pop())
             manifestation_1_id = item["manifestation_id"]
@@ -179,7 +232,7 @@ class Neo4JDatabase:
                     queue.put({"manifestation_id": manifestation_2_id, "span_start": overall_start, "span_end": overall_end})
 
         if transform:
-            print("Transformed related segments: \n", transformed_related_segments)
+            logger.info("Transformed related segments: \n", transformed_related_segments)
             return transformed_related_segments
         else:
             return untransformed_related_segments
@@ -187,10 +240,10 @@ class Neo4JDatabase:
     def get_segments_by_manifestation(self, manifestation_id: str) -> list[dict]:
         """
         Get all segments from segmentation or pagination annotation for a manifestation.
-        
+
         Args:
             manifestation_id: The manifestation ID
-            
+
         Returns:
             List of dictionaries containing segment_id, span_start, and span_end
         """
@@ -202,3 +255,19 @@ class Neo4JDatabase:
                 ))
             )
             return [dict(record) for record in result]
+
+    def has_alignment_annotation(self, manifestation_id: str) -> bool:
+        """
+        Method to check if a manifestation has an alignment annotation
+        """
+        with self.get_session() as session:
+            result = session.execute_read(
+                lambda tx: tx.run(
+                    Queries.annotations["has_alignment_annotation"],
+                    manifestation_id=manifestation_id
+                ).single()
+            )
+            if result is None:
+                return False
+            return result["has_alignment"]
+
