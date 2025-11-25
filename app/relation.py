@@ -158,11 +158,9 @@ def get_all_segmentation(
 def get_all_segments_relation_by_manifestation_id(manifestation_id: str):
     try:
         logger.info("CHECKING IF MANIFESTATION ALREADY EXISTS")
-        is_manifestation_already_exists = _check_if_manifestation_alreay_exists(
+        _check_if_manifestation_already_exists(
             manifestation_id=manifestation_id
         )
-        if is_manifestation_already_exists:
-            return "Already exists"
         db = Neo4JDatabase()
         has_alignment_annotation = db.has_alignment_annotation(
             manifestation_id=manifestation_id
@@ -201,12 +199,14 @@ def get_all_segments_relation_by_manifestation_id(manifestation_id: str):
         )
 
 
-def _check_if_manifestation_alreay_exists(manifestation_id: str):
+def _check_if_manifestation_already_exists(manifestation_id: str):
+    """
+    Check if a manifestation already exists
+    """
     try:
         with SessionLocal() as session:
             root_job = session.query(RootJob).filter(RootJob.manifestation_id == manifestation_id).first()
             if root_job:
-                return True
                 raise HTTPException(
                     status_code=400,
                     detail="Manifestation already exists with job id: " + str(root_job.job_id)
