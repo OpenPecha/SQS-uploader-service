@@ -116,9 +116,9 @@ def _format_all_text_segment_relation_mapping(
                 segments=mapping["segments"]
             )
             segment.mappings.append(mapping_dict)
-        logger.info("Segment: ", segment)
+        logger.info(f"Segment: {segment}")
         response.segments.append(segment)
-    logger.info("Response: ", response)
+    logger.info(f"Response: {response}")
     return response
 
 
