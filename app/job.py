@@ -1,0 +1,324 @@
+"""
+Importing neccessary libraries for relation endpoints
+"""
+import json
+import logging
+import boto3
+from fastapi import APIRouter, HTTPException
+from app.db.postgres import SessionLocal
+from app.db.models import RootJob, SegmentTask
+from app.neo4j_database import Neo4JDatabase
+from datetime import datetime, timezone
+from uuid import uuid4
+from app.config import get
+from app.models import (
+    SegmentsRelationRequest, 
+    AllTextSegmentRelationMapping,
+    SegmentsRelation,
+    Mapping,
+    SegmentWithSpan,
+    SegmentationResponse,
+    Span,
+    Segments
+)
+
+job = APIRouter(
+    prefix="/job",
+    tags=["Job"]
+)
+
+logger = logging.getLogger(__name__)
+
+# Initialize SQS client with proper configuration
+sqs_client = boto3.client(
+    'sqs',
+    region_name=get('AWS_REGION'),
+    aws_access_key_id=get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=get('AWS_SECRET_ACCESS_KEY')
+)
+
+@job.get("/{job_id}/status")
+def get_job_status(job_id: str):
+    """
+    Get job status by job id
+    """
+    try:
+        with SessionLocal() as session:
+            job = session.query(RootJob).filter(
+                RootJob.job_id == job_id
+            ).first()
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            return job
+    except Exception as e:
+        logger.error(f"Error in get_job_status: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job status, Database read error: {str(e)}"
+        ) from e
+
+
+@job.get("/{manifestation_id}/all-relations")
+def get_all_segments_relation_by_manifestation(manifestation_id: str):
+    """
+    Get all segments relation by manifestation id
+    """
+    try:
+        with SessionLocal() as session:
+            root_job = session.query(RootJob).filter(RootJob.manifestation_id == manifestation_id).first()
+            if root_job.completed_segments < root_job.total_segments:
+                raise HTTPException(status_code=400, detail="Job not completed")
+
+            all_text_segment_relations = session.query(SegmentTask).filter(
+                SegmentTask.job_id == root_job.job_id
+            ).all()
+
+            response = _format_all_text_segment_relation_mapping(
+                manifestation_id=manifestation_id,
+                all_text_segment_relations=all_text_segment_relations
+            )
+            return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get all segments relation by manifestation, Database read error, Error: " + str(e))
+
+
+def _format_all_text_segment_relation_mapping(
+    manifestation_id: str,
+    all_text_segment_relations
+):
+    """
+    Format all text segment relation mapping
+    """
+    response = AllTextSegmentRelationMapping(
+        manifestation_id=manifestation_id,
+        segments=[]
+    )
+    for task in all_text_segment_relations:
+        task_dict = {
+            "task_id": str(task.task_id),
+            "job_id": str(task.job_id),
+            "segment_id": task.segment_id,
+            "status": task.status,
+            "result_json": task.result_json,
+            "result_location": task.result_location,
+            "error_message": task.error_message,
+            "created_at": task.created_at.isoformat() if task.created_at else None,
+            "updated_at": task.updated_at.isoformat() if task.updated_at else None
+        }
+        logger.info("Starting with formatting task: ", task_dict)
+        segment = SegmentsRelation(
+            segment_id=task.segment_id,
+            mappings=[]
+        )
+        for mapping in task_dict["result_json"]:
+            mapping_dict = Mapping(
+                manifestation_id=mapping["manifestation_id"],
+                segments=mapping["segments"]
+            )
+            segment.mappings.append(mapping_dict)
+        logger.info(f"Segment: {segment}")
+        response.segments.append(segment)
+    logger.info(f"Response: {response}")
+    return response
+
+
+def get_all_segmentation(
+    db: Neo4JDatabase,
+    manifestation_id: str
+) -> SegmentationResponse:
+    """Helper function to get all segments from segmentation annotation"""
+    try:
+        segments_data = db.get_segments_by_manifestation(manifestation_id)
+
+        if not segments_data:
+            raise HTTPException(
+                status_code=404, 
+                detail="Segmentation annotation not available for this manifestation"
+            )
+        segments = [
+            SegmentWithSpan(
+                segment_id=seg["segment_id"],
+                span=Span(start=seg["span_start"], end=seg["span_end"])
+            )
+            for seg in segments_data
+        ]
+
+        return SegmentationResponse(
+            manifestation_id=manifestation_id,
+            segments=segments
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting segments: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@job.post("/{manifestation_id}")
+def get_all_segments_relation_by_manifestation_id(manifestation_id: str):
+    try:
+        logger.info("CHECKING IF MANIFESTATION ALREADY EXISTS")
+        _check_if_manifestation_already_exists(
+            manifestation_id=manifestation_id
+        )
+        db = Neo4JDatabase()
+        has_alignment_annotation = db.has_alignment_annotation(
+            manifestation_id=manifestation_id
+        )
+        if not has_alignment_annotation:
+            return "No alignment annotation found, Skipping relation calculation"
+        
+        # Get all segments from the manifestation
+        all_segments = get_all_segmentation(
+            db=db,
+            manifestation_id=manifestation_id
+        )
+
+        # Convert SegmentationResponse to SegmentsRelationRequest
+        segments_list = [
+            Segments(
+                segment_id=seg.segment_id,
+                span=seg.span
+            )
+            for seg in all_segments.segments
+        ]
+        request = SegmentsRelationRequest(
+            manifestation_id=manifestation_id,
+            segments=segments_list
+        )
+        response = get_segments_relation(request=request)
+
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_all_segments_relation_by_manifestation_id: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get all segments relation by manifestation, Error: {str(e)}"
+        )
+
+
+def _check_if_manifestation_already_exists(manifestation_id: str):
+    """
+    Check if a manifestation already exists
+    """
+    try:
+        with SessionLocal() as session:
+            root_job = session.query(RootJob).filter(RootJob.manifestation_id == manifestation_id).first()
+            if root_job:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Manifestation already exists with job id: " + str(root_job.job_id)
+                )
+            return False
+    except HTTPException:
+        # Re-raise HTTPException as-is (don't wrap it)
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to check if manifestation already exists, Database read error, Error: " + str(e)
+        )
+
+
+def get_segments_relation(request: SegmentsRelationRequest):
+
+    job_id = str(uuid4())
+
+    _create_root_job(
+        job_id=job_id,
+        total_segments=len(request.segments),
+        manifestation_id=request.manifestation_id
+    )
+
+    # Create segment task records
+    _create_segment_tasks(
+        job_id=job_id,
+        segments=request.segments
+    )
+
+    # Prepare messages for batch sending (max 10 per batch)
+    batch_size = 10
+    total_dispatched = 0
+
+    for i in range(0, len(request.segments), batch_size):
+        batch = request.segments[i:i + batch_size]
+
+        entries = []
+        for idx, segment in enumerate(batch):
+            message_body = {
+                "job_id": job_id,
+                "manifestation_id": request.manifestation_id,
+                "segment_id": segment.segment_id,
+                "start": segment.span.start,
+                "end": segment.span.end
+            }
+            
+            entries.append({
+                "Id": str(idx),
+                "MessageBody": json.dumps(message_body)
+            })
+
+        response = sqs_client.send_message_batch(
+            QueueUrl=get("SQS_QUEUE_URL"),
+            Entries=entries
+        )
+        # Count successful sends
+        successful = len(response.get('Successful', []))
+        failed = len(response.get('Failed', []))
+        total_dispatched += successful
+        logger.info(f"Batch sent: {successful} successful, {failed} failed")
+
+        if failed > 0:
+            logger.error(f"Failed messages: {response.get('Failed', [])}")
+
+    return {
+        "job_id": job_id,
+        "status": "QUEUED",
+        "message": f"Segments relation job created successfully. Dispatched {total_dispatched} tasks in batches."
+    }
+
+
+def _create_root_job(job_id: uuid4, total_segments: int, manifestation_id: str):
+    try:
+        with SessionLocal() as session:
+            session.add(
+                RootJob(
+                    job_id=job_id,
+                    manifestation_id=manifestation_id,
+                    total_segments=total_segments,
+                    completed_segments=0,
+                    status="QUEUED",
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
+                )
+            )
+            session.commit()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create root job, Database write error"
+        ) from e
+
+
+def _create_segment_tasks(job_id: str, segments: list):
+    try:
+        with SessionLocal() as session:
+            for segment in segments:
+                session.add(
+                    SegmentTask(
+                        task_id=uuid4(),
+                        job_id=job_id,
+                        segment_id=segment.segment_id,
+                        status="QUEUED",
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc)
+                    )
+                )
+            session.commit()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create segment tasks: {str(e)}"
+        ) from e

@@ -11,8 +11,8 @@ class RootJob(Base):
 
     job_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     manifestation_id = Column(Text, nullable=False)
-    total_segments = Column(Integer, nullable=False)
-    completed_segments = Column(Integer, nullable=False, default=0)
+    total_batch = Column(Integer, nullable=False)
+    completed_batch = Column(Integer, nullable=False, default=0)
     status = Column(
         String(20),
         CheckConstraint(
@@ -21,22 +21,29 @@ class RootJob(Base):
         ),
         nullable=False
     )
-    merged_result_location = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    segment_tasks = relationship(
-        "SegmentTask",
+    segment_mappings = relationship(
+        "SegmentMapping",
         back_populates="root_job",
         cascade="all, delete-orphan"
     )
 
 
-class SegmentTask(Base):
-    __tablename__ = "segment_tasks"
+class SegmentMapping(Base):
+    __tablename__ = "segment_mapping"
 
     task_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("root_jobs.job_id"), nullable=False)
+    job_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("root_jobs.job_id"),
+        nullable=False
+    )
+    manifestation_id = Column(
+        Text,
+        nullable=False
+    )
     segment_id = Column(Text, nullable=False)
     status = Column(
         String(20),
