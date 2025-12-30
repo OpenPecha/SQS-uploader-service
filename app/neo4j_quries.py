@@ -8,6 +8,12 @@ MATCH (m:Manifestation {id: $manifestation_id})
 OPTIONAL MATCH (m)<-[:ANNOTATION_OF]-(a:Annotation)-[:HAS_TYPE]->(:AnnotationType {name: 'alignment'})
 RETURN COUNT(a) > 0 as has_alignment
 """,
+    "batch_has_alignment_annotation": """
+UNWIND $text_ids AS text_id
+MATCH (m:Manifestation {id: text_id})
+OPTIONAL MATCH (m)<-[:ANNOTATION_OF]-(a:Annotation)-[:HAS_TYPE]->(:AnnotationType {name: 'alignment'})
+RETURN text_id, COUNT(a) > 0 as has_alignment
+""",
 }
 
 Queries.segments = {

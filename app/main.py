@@ -4,7 +4,7 @@ Importing necessary libraries for fastapi application
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.relation import relation
+from app.job.job_views import job_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,8 +42,9 @@ def health_check():
     }
 
 
-app.include_router(relation)
+app.include_router(job_router)
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="localhost", port=8080, reload=True)
+
