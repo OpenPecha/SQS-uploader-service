@@ -25,6 +25,7 @@ from app.job.job_sqs_service import (
 
 logger = logging.getLogger(__name__)
 
+BATCH_SIZE = 500
 
 def get_job_status_service(job_id_or_text_id: str):
     """
@@ -45,10 +46,7 @@ def get_all_segments_relation_by_text_id_service(
     """
 
     # Cap limit at 100
-    if limit > 100:
-        limit = 100
-    if skip < 0:
-        skip = 0
+    skip, limit = _sanitize_skip_and_limit(skip=skip, limit=limit)
 
     root_job = get_root_job_by_job_id_or_text_id_repository(text_id)
 
@@ -146,15 +144,13 @@ def get_all_segments_relation_by_text_ids_service(
             total_batches = _calculate_total_batches(segment_ids=segment_ids)
 
             # Create root job
-            batch_size = 500
-            job_id = _create_root_job(batch_size=batch_size, total_batches=total_batches, text_id=text_id)
+            job_id = _create_root_job(total_batches=total_batches, text_id=text_id)
 
             # Send batched segment messages to SQS
             send_segment_batches_to_sqs_service(
                 job_id=job_id,
                 text_id=text_id,
-                segment_ids=segment_ids,
-                batch_size=batch_size
+                segment_ids=segment_ids
             )
 
             logger.info(
@@ -180,11 +176,11 @@ def get_all_segments_relation_by_text_ids_service(
             detail=f"Failed to process text_ids, Error: {str(e)}"
         ) from e
 
-def _calculate_total_batches(batch_size: int, segment_ids: list[str]) -> int:
+def _calculate_total_batches(segment_ids: list[str]) -> int:
     """
     Calculate the total batches
     """
-    total_batches = math.ceil(len(segment_ids) / batch_size)
+    total_batches = math.ceil(len(segment_ids) / BATCH_SIZE)
     return total_batches
 
 def _create_root_job(total_batches: int, text_id: str) -> str:
@@ -291,3 +287,13 @@ def _get_all_segmentation(
             status_code=500,
             detail=f"Database error: {str(e)}"
         ) from e
+
+def _sanitize_skip_and_limit(skip: int, limit: int) -> tuple[int, int]:
+    """
+    Sanitize the skip and limit
+    """
+    if skip < 0:
+        skip = 0
+    if limit > 100:
+        limit = 100
+    return skip, limit
