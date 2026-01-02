@@ -16,9 +16,9 @@ sqs_client = boto3.client(
 
 
 def send_segment_batches_to_sqs_service(
-    job_id: str,
+    root_job_id: str,
     text_id: str,
-    segment_ids: list[str],
+    segments: list[dict],
     batch_size: int = 500
 ):
     """
@@ -31,23 +31,24 @@ def send_segment_batches_to_sqs_service(
         segment_ids: List of all segment IDs to process
         batch_size: Number of segments per batch (default 500)
     """
-    total_batches = math.ceil(len(segment_ids) / batch_size)
+    total_batches = math.ceil(len(segments) / batch_size)
+    total_segments = len(segments)
     total_sent = 0
 
-    for batch_number in range(total_batches):
-        start_idx = batch_number * batch_size
-        end_idx = min(start_idx + batch_size, len(segment_ids))
-        batch_segment_ids = segment_ids[start_idx:end_idx]
+    
+    try:
+        for batch_number in range(total_batches):
+            start_idx = batch_number * batch_size
+            end_idx = min(start_idx + batch_size, len(segments))
+            batch_segments = segments[start_idx:end_idx]
 
-        message_body = _prepare_message_body(
-            job_id=job_id,
-            text_id=text_id,
-            segment_ids=batch_segment_ids,
-            batch_number=batch_number,
-            total_batches=total_batches
-        )
-
-        try:
+            message_body = _prepare_message_body(
+                root_job_id=root_job_id,
+                text_id=text_id,
+                segments=batch_segments,
+                batch_number=batch_number,
+                total_segments=total_segments
+            )
             sqs_client.send_message(
                 QueueUrl=get("SQS_QUEUE_URL"),
                 MessageBody=json.dumps(message_body)
@@ -57,16 +58,16 @@ def send_segment_batches_to_sqs_service(
                 "Sent batch %d/%d for text_id %s",
                 batch_number + 1, total_batches, text_id
             )
-        except Exception as e:
-            logger.error(
-                "Failed to send batch %d for text_id %s: %s",
-                batch_number + 1, text_id, str(e)
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to send SQS message for batch "
-                       f"{batch_number + 1}: {str(e)}"
-            ) from e
+    except Exception as e:
+        logger.error(
+            "Failed to send batch %d for text_id %s: %s",
+            batch_number + 1, text_id, str(e)
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send SQS message for batch "
+                f"{batch_number + 1}: {str(e)}"
+        ) from e
 
     logger.info(
         "Successfully sent %d batches to SQS for text_id %s",
@@ -75,20 +76,20 @@ def send_segment_batches_to_sqs_service(
 
 
 def _prepare_message_body(
-    job_id: str,
+    root_job_id: str,
     text_id: str,
+    segments: list[dict],
     batch_number: int,
-    total_batches: int,
-    batch_segment_ids: list[str]
+    total_segments: int,
 ) -> dict:
     """
     Prepare the message body for the SQS message.
     """
     message_body = {
-            "job_id": job_id,
-            "text_id": text_id,
-            "batch_number": batch_number + 1,  # 1-indexed for readability
-            "total_batches": total_batches,
-            "segment_ids": batch_segment_ids
-        }
+        "root_job_id": root_job_id,
+        "text_id": text_id,
+        "batch_number": batch_number + 1,  # 1-indexed for readability
+        "total_segments": total_segments,
+        "segment_ids": segments
+    }
     return message_body

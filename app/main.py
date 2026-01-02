@@ -44,6 +44,9 @@ def health_check():
 
 app.include_router(job_router)
 
+
+# To run the server locally, use the following command:
+# uvicorn app.main:app --reload --host localhost --port 8080
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="localhost", port=8080, reload=True)

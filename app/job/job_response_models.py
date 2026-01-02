@@ -12,7 +12,7 @@ class Segments(BaseModel):
 
 
 class SegmentsRelationRequest(BaseModel):
-    manifestation_id: str
+    text_id: str
     segments: list[Segments]
 
 
@@ -22,7 +22,7 @@ class MappingSegment(BaseModel):
 
 
 class Mapping(BaseModel):
-    manifestation_id: str
+    text_id: str
     segments: list[MappingSegment]
 
 
@@ -32,7 +32,7 @@ class SegmentsRelation(BaseModel):
 
 
 class AllTextSegmentRelationMapping(BaseModel):
-    manifestation_id: str
+    text_id: str
     segments: list[SegmentsRelation]
 
 
@@ -42,7 +42,7 @@ class SegmentWithSpan(BaseModel):
 
 
 class SegmentationResponse(BaseModel):
-    manifestation_id: str
+    text_id: str
     segments: list[SegmentWithSpan]
 
 

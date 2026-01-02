@@ -15,7 +15,7 @@ def get_root_job_by_job_id_or_text_id_repository(job_id_or_text_id: str):
         with SessionLocal() as session:
             job = session.query(RootJob).filter(
                 (RootJob.job_id == job_id_or_text_id)
-                | (RootJob.manifestation_id == job_id_or_text_id)
+                | (RootJob.text_id == job_id_or_text_id)
             ).first()
             if not job:
                 raise HTTPException(
@@ -48,16 +48,16 @@ def get_segment_mapping_by_job_id_repository(
                 SegmentMapping.job_id == job_id
             ).offset(skip).limit(limit).all()
 
-def create_root_job_repository(job_id: str, total_batch: int, manifestation_id: str):
+def create_root_job_repository(job_id: str, total_segments: int, text_id: str):
     """Create a root job record in the database."""
     try:
         with SessionLocal() as session:
             session.add(
                 RootJob(
                     job_id=job_id,
-                    manifestation_id=manifestation_id,
-                    total_batch=total_batch,
-                    completed_batch=0,
+                    text_id=text_id,
+                    total_segments=total_segments,
+                    completed_segments=0,
                     status="QUEUED",
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc)

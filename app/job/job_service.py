@@ -67,7 +67,7 @@ def get_all_segments_relation_by_text_id_service(
     )
 
     segments = _format_all_text_segment_relation_mapping(
-        manifestation_id=text_id,
+        text_id=text_id,
         all_text_segment_relations=paginated_relations
     )
 
@@ -80,7 +80,7 @@ def get_all_segments_relation_by_text_id_service(
     )
 
 
-def get_all_segments_relation_by_text_ids_service(
+def generate_all_segments_relation_by_text_ids_service(
     text_ids: list[str]
 ):
     """
@@ -98,7 +98,7 @@ def get_all_segments_relation_by_text_ids_service(
             "Checking alignment annotations for %d text_ids",
             len(text_ids)
         )
-        alignment_map = db.get_text_ids_with_alignment(text_ids)
+        alignment_map = db.get_text_ids_with_alignment(text_ids=text_ids)
 
         response_list: list[TextIdJobResponse] = []
 
@@ -119,43 +119,37 @@ def get_all_segments_relation_by_text_ids_service(
                 continue
 
             # Get all segments for this text_id
-            try:
-                all_segments = _get_all_segmentation(
-                    db=db,
-                    manifestation_id=text_id
-                )
-            except HTTPException as e:
-                if e.status_code == 404:
-                    logger.warning(
-                        "No segments found for text_id %s, skipping",
-                        text_id
-                    )
-                    response_list.append(TextIdJobResponse(
-                        text_id=text_id,
-                        root_job_id=None,
-                        status="SKIPPED_NO_SEGMENTS"
-                    ))
-                    continue
-                raise
+            all_segments = _get_all_segmentation(
+                db=db,
+                text_id=text_id
+            )
 
-            segment_ids = [seg.segment_id for seg in all_segments.segments]
+            response_list.append(TextIdJobResponse(
+                text_id=text_id,
+                root_job_id=None,
+                status="SKIPPED_NO_SEGMENTS"
+            ))
 
-            # Calculate number of batches (500 segments per batch)
-            total_batches = _calculate_total_batches(segment_ids=segment_ids)
+            segments = [{"segment_id": seg.segment_id, "span": seg.span} for seg in all_segments.segments]
+
+            total_segments = len(segments)
 
             # Create root job
-            job_id = _create_root_job(total_batches=total_batches, text_id=text_id)
+            job_id = _create_root_job(
+                total_segments=total_segments,
+                text_id=text_id
+            )
 
             # Send batched segment messages to SQS
             send_segment_batches_to_sqs_service(
-                job_id=job_id,
+                root_job_id=job_id,
                 text_id=text_id,
-                segment_ids=segment_ids
+                segments=segments
             )
 
             logger.info(
                 "Created job %s for text_id %s with %d batches",
-                job_id, text_id, total_batches
+                job_id, text_id, total_segments
             )
             response_list.append(TextIdJobResponse(
                 text_id=text_id,
@@ -168,7 +162,7 @@ def get_all_segments_relation_by_text_ids_service(
         raise
     except Exception as e:
         logger.error(
-            "Error in get_all_segments_relation_by_manifestation_id: %s",
+            "Error in get_all_segments_relation_by_text_id: %s",
             str(e)
         )
         raise HTTPException(
@@ -176,34 +170,27 @@ def get_all_segments_relation_by_text_ids_service(
             detail=f"Failed to process text_ids, Error: {str(e)}"
         ) from e
 
-def _calculate_total_batches(segment_ids: list[str]) -> int:
-    """
-    Calculate the total batches
-    """
-    total_batches = math.ceil(len(segment_ids) / BATCH_SIZE)
-    return total_batches
-
-def _create_root_job(total_batches: int, text_id: str) -> str:
+def _create_root_job(total_segments: int, text_id: str) -> str:
     """
     Create a root job
     """
     job_id = str(uuid4())
     create_root_job_repository(
         job_id=job_id,
-        total_batch=total_batches,
-        manifestation_id=text_id
+        total_segments=total_segments,
+        text_id=text_id
     )
     return job_id
 
 def _format_all_text_segment_relation_mapping(
-    manifestation_id: str,
+    text_id: str,
     all_text_segment_relations
 ):
     """
     Format all text segment relation mapping
     """
     response = AllTextSegmentRelationMapping(
-        manifestation_id=manifestation_id,
+        text_id=text_id,
         segments=[]
     )
     for task in all_text_segment_relations:
@@ -227,7 +214,7 @@ def _get_segment_formatted(task_dict: dict) -> SegmentsRelation:
         )
     for mapping in task_dict["result_json"]:
         mapping_dict = Mapping(
-            manifestation_id=mapping["manifestation_id"],
+            text_id=mapping["text_id"],
             segments=mapping["segments"]
         )
         segment.mappings.append(mapping_dict)
@@ -256,11 +243,11 @@ def _get_task_dict(task) -> dict:
 
 def _get_all_segmentation(
     db: Neo4JDatabase,
-    manifestation_id: str
+    text_id: str
 ) -> SegmentationResponse:
     """Helper function to get all segments from segmentation annotation"""
     try:
-        segments_data = db.get_segments_by_manifestation(manifestation_id)
+        segments_data = db.get_segments_by_manifestation(text_id)
 
         if not segments_data:
             raise HTTPException(
@@ -276,7 +263,7 @@ def _get_all_segmentation(
         ]
 
         return SegmentationResponse(
-            manifestation_id=manifestation_id,
+            text_id=text_id,
             segments=segments
         )
     except HTTPException:

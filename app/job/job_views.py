@@ -10,7 +10,7 @@ from app.job.job_response_models import (
 from app.job.job_service import (
     get_job_status_service,
     get_all_segments_relation_by_text_id_service,
-    get_all_segments_relation_by_text_ids_service
+    generate_all_segments_relation_by_text_ids_service
 )
 
 job_router = APIRouter(
@@ -41,7 +41,7 @@ def get_all_segments_relation_by_text_id(
     Get all segments relation by manifestation id with pagination.
 
     Args:
-        manifestation_id: The manifestation ID
+        text_id: The manifestation ID
         skip: Number of records to skip (default 0)
         limit: Maximum number of records to return (default 100, max 100)
     """
@@ -53,13 +53,13 @@ def get_all_segments_relation_by_text_id(
 
 
 @job_router.post("/text-ids")
-def get_all_segments_relation_by_text_ids(
+def generate_all_segments_relation_by_text_ids(
     text_ids: list[str] = None
 ) -> list[TextIdJobResponse]:
     """
     Process multiple text_ids, check alignment annotations, create root jobs,
     and send batched segment messages to SQS.
     """
-    return get_all_segments_relation_by_text_ids_service(
+    return generate_all_segments_relation_by_text_ids_service(
         text_ids=text_ids
     )
