@@ -78,3 +78,25 @@ class Neo4JDatabase:
             if result is None:
                 return False
             return result["has_alignment"]
+
+    def get_text_ids_with_alignment(self, text_ids: list[str]) -> dict[str, bool]:
+        """
+        Check alignment annotations for multiple text_ids in a single query.
+
+        Args:
+            text_ids: List of text IDs to check
+
+        Returns:
+            Dictionary mapping text_id -> has_alignment (bool)
+        """
+        if not text_ids:
+            return {}
+        
+        with self.get_session() as session:
+            result = session.execute_read(
+                lambda tx: list(tx.run(
+                    Queries.annotations["batch_has_alignment_annotation"],
+                    text_ids=text_ids
+                ))
+            )
+            return {record["text_id"]: record["has_alignment"] for record in result}

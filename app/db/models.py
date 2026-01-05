@@ -10,9 +10,9 @@ class RootJob(Base):
     __tablename__ = "root_jobs"
 
     job_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    manifestation_id = Column(Text, nullable=False)
-    total_batch = Column(Integer, nullable=False)
-    completed_batch = Column(Integer, nullable=False, default=0)
+    text_id = Column(Text, nullable=False)
+    total_segments = Column(Integer, nullable=False)
+    completed_segments = Column(Integer, nullable=False, default=0)
     status = Column(
         String(20),
         CheckConstraint(
@@ -35,12 +35,12 @@ class SegmentMapping(Base):
     __tablename__ = "segment_mapping"
 
     task_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    job_id = Column(
+    root_job_id = Column(
         UUID(as_uuid=True),
         ForeignKey("root_jobs.job_id"),
         nullable=False
     )
-    manifestation_id = Column(
+    text_id = Column(
         Text,
         nullable=False
     )
@@ -54,7 +54,6 @@ class SegmentMapping(Base):
         nullable=False
     )
     result_json = Column(JSONB, nullable=True)
-    result_location = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
