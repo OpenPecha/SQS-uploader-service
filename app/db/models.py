@@ -1,5 +1,14 @@
 from app.db.postgres import Base
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, CheckConstraint, DateTime
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -33,6 +42,13 @@ class RootJob(Base):
 
 class SegmentMapping(Base):
     __tablename__ = "segment_mapping"
+    __table_args__ = (
+        UniqueConstraint(
+            "root_job_id",
+            "segment_id",
+            name="uq_segment_mapping_root_job_segment",
+        ),
+    )
 
     task_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     root_job_id = Column(
@@ -47,7 +63,8 @@ class SegmentMapping(Base):
     status = Column(
         String(20),
         CheckConstraint(
-            "status IN ('QUEUED','IN_PROGRESS','COMPLETED','FAILED','RETRYING')",
+            "status IN ('QUEUED','IN_PROGRESS','COMPLETED','FAILED','"
+            "RETRYING')",
             name="segment_task_status_check"
         ),
         nullable=False

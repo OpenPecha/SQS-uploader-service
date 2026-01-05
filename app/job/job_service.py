@@ -124,12 +124,6 @@ def generate_all_segments_relation_by_text_ids_service(
                 text_id=text_id
             )
 
-            response_list.append(TextIdJobResponse(
-                text_id=text_id,
-                root_job_id=None,
-                status="SKIPPED_NO_SEGMENTS"
-            ))
-
             segments = [{"segment_id": seg.segment_id, "span": seg.span} for seg in all_segments.segments]
 
             total_segments = len(segments)
