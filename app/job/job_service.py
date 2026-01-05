@@ -228,7 +228,7 @@ def _get_task_dict(task) -> dict:
     """
     task_dict = {
             "task_id": str(task.task_id),
-            "job_id": str(task.job_id),
+            "root_job_id": str(task.root_job_id),
             "segment_id": task.segment_id,
             "status": task.status,
             "result_json": task.result_json,
