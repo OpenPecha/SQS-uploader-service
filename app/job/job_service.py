@@ -70,6 +70,9 @@ def get_all_segments_relation_by_text_id_service(
         limit=limit
     )
 
+    print(paginated_relations)
+    print(len(paginated_relations))
+
     segments = _format_all_text_segment_relation_mapping(
         text_id=text_id,
         all_text_segment_relations=paginated_relations
