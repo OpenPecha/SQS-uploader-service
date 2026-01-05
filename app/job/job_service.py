@@ -59,11 +59,13 @@ def get_all_segments_relation_by_text_id_service(
         )
 
     # Get total count
-    total_count = get_total_segment_mapping_count_by_job_id_repository(root_job.job_id)
+    total_count = get_total_segment_mapping_count_by_job_id_repository(
+        job_id=root_job.job_id
+    )
 
     # Get paginated results
     paginated_relations = get_segment_mapping_by_job_id_repository(
-        job_id=root_job.job_id,
+        job_id=str(root_job.job_id),
         skip=skip,
         limit=limit
     )

@@ -63,7 +63,7 @@ def get_segment_mapping_by_job_id_repository(
 ):
     with SessionLocal() as session:
         return session.query(SegmentMapping).filter(
-                SegmentMapping.root_job_id == job_id
+            (SegmentMapping.root_job_id == job_id)
             ).offset(skip).limit(limit).all()
 
 
