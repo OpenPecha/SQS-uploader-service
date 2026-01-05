@@ -4,7 +4,7 @@ from app.neo4j_database import Neo4JDatabase
 import math
 from uuid import uuid4
 from app.job.job_respository import (
-    get_root_job_by_job_id_or_text_id_repository,
+    get_root_job_by_job_id_repository,
     get_total_segment_mapping_count_by_job_id_repository,
     get_segment_mapping_by_job_id_repository,
     create_root_job_repository
@@ -32,7 +32,7 @@ def get_job_status_service(job_id: str):
     """
     Get job status by job id or text id
     """
-    job = get_root_job_by_job_id_or_text_id_repository(job_id)
+    job = get_root_job_by_job_id_repository(job_id)
 
     return job
 
