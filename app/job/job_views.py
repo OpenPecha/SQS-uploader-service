@@ -21,13 +21,13 @@ job_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@job_router.get("/{job_id_or_text_id}/status")
-def get_job_status(job_id_or_text_id: str):
+@job_router.get("/{job_id}/status")
+def get_job_status(job_id: str):
     """
     Get job status by job id
     """
     return get_job_status_service(
-        job_id_or_text_id=job_id_or_text_id
+        job_id=job_id
     )
 
 

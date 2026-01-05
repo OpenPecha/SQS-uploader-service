@@ -27,11 +27,12 @@ logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
 
-def get_job_status_service(job_id_or_text_id: str):
+
+def get_job_status_service(job_id: str):
     """
     Get job status by job id or text id
     """
-    job = get_root_job_by_job_id_or_text_id_repository(job_id_or_text_id)
+    job = get_root_job_by_job_id_or_text_id_repository(job_id)
 
     return job
 
