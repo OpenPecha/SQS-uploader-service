@@ -50,7 +50,7 @@ def get_all_segments_relation_by_text_id_service(
 
     root_job = get_root_job_by_job_id_or_text_id_repository(text_id)
 
-    if root_job.completed_batch < root_job.total_batch:
+    if root_job.completed_segments < root_job.total_segments:
         raise HTTPException(
             status_code=400,
             detail="Job not completed"

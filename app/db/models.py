@@ -41,8 +41,7 @@ class SegmentMapping(Base):
         nullable=False
     )
     text_id = Column(
-        Text,
-        nullable=False
+        Text
     )
     segment_id = Column(Text, nullable=False)
     status = Column(
@@ -58,4 +57,4 @@ class SegmentMapping(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    root_job = relationship("RootJob", back_populates="segment_tasks")
+    root_job = relationship("RootJob", back_populates="segment_mappings")
