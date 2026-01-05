@@ -36,7 +36,6 @@ def send_segment_batches_to_sqs_service(
     total_segments = len(segments)
     total_sent = 0
 
-    
     try:
         for batch_number in range(total_batches):
             start_idx = batch_number * batch_size

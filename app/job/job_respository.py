@@ -10,12 +10,11 @@ from app.db.models import (
 logger = logging.getLogger(__name__)
 
 
-def get_root_job_by_job_id_or_text_id_repository(job_id_or_text_id: str):
+def get_root_job_by_job_id_repository(job_id: str):
     try:
         with SessionLocal() as session:
             job = session.query(RootJob).filter(
-                (RootJob.job_id == job_id_or_text_id)
-                | (RootJob.text_id == job_id_or_text_id)
+                (RootJob.job_id == job_id)
             ).first()
             if not job:
                 raise HTTPException(
