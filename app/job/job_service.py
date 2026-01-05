@@ -229,10 +229,10 @@ def _get_task_dict(task) -> dict:
     task_dict = {
             "task_id": str(task.task_id),
             "root_job_id": str(task.root_job_id),
+            "text_id": task.text_id,
             "segment_id": task.segment_id,
             "status": task.status,
             "result_json": task.result_json,
-            "result_location": task.result_location,
             "error_message": task.error_message,
             "created_at": (
                 task.created_at.isoformat() if task.created_at else None
