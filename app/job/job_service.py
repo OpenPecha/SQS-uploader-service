@@ -215,7 +215,7 @@ def _get_segment_formatted(task_dict: dict) -> SegmentsRelation:
         )
     for mapping in task_dict["result_json"]:
         mapping_dict = Mapping(
-            text_id=mapping["text_id"],
+            text_id=mapping["manifestation_id"],
             segments=mapping["segments"]
         )
         segment.mappings.append(mapping_dict)
