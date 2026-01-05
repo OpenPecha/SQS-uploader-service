@@ -5,6 +5,7 @@ import math
 from uuid import uuid4
 from app.job.job_respository import (
     get_root_job_by_job_id_repository,
+    get_root_job_by_text_id_repository,
     get_total_segment_mapping_count_by_job_id_repository,
     get_segment_mapping_by_job_id_repository,
     create_root_job_repository
@@ -49,7 +50,7 @@ def get_all_segments_relation_by_text_id_service(
     # Cap limit at 100
     skip, limit = _sanitize_skip_and_limit(skip=skip, limit=limit)
 
-    root_job = get_root_job_by_job_id_or_text_id_repository(text_id)
+    root_job = get_root_job_by_text_id_repository(text_id)
 
     if root_job.completed_segments < root_job.total_segments:
         raise HTTPException(
@@ -165,6 +166,7 @@ def generate_all_segments_relation_by_text_ids_service(
             detail=f"Failed to process text_ids, Error: {str(e)}"
         ) from e
 
+
 def _create_root_job(total_segments: int, text_id: str) -> str:
     """
     Create a root job
@@ -176,6 +178,7 @@ def _create_root_job(total_segments: int, text_id: str) -> str:
         text_id=text_id
     )
     return job_id
+
 
 def _format_all_text_segment_relation_mapping(
     text_id: str,
@@ -199,6 +202,7 @@ def _format_all_text_segment_relation_mapping(
     logger.info("Response: %s", response)
     return response
 
+
 def _get_segment_formatted(task_dict: dict) -> SegmentsRelation:
     """
     Get the segment formatted
@@ -214,6 +218,7 @@ def _get_segment_formatted(task_dict: dict) -> SegmentsRelation:
         )
         segment.mappings.append(mapping_dict)
     return segment
+
 
 def _get_task_dict(task) -> dict:
     """
@@ -235,6 +240,7 @@ def _get_task_dict(task) -> dict:
             )
         }
     return task_dict
+
 
 def _get_all_segmentation(
     db: Neo4JDatabase,
@@ -269,6 +275,7 @@ def _get_all_segmentation(
             status_code=500,
             detail=f"Database error: {str(e)}"
         ) from e
+
 
 def _sanitize_skip_and_limit(skip: int, limit: int) -> tuple[int, int]:
     """

@@ -10,6 +10,23 @@ from app.db.models import (
 logger = logging.getLogger(__name__)
 
 
+def get_root_job_by_text_id_repository(text_id: str):
+    try:
+        with SessionLocal() as session:
+            job = session.query(RootJob).filter(
+                (RootJob.text_id == text_id)
+            ).first()
+            return job
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in get_root_job_by_text_id: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get root job by text id, Database read error: {str(e)}"
+        ) from e
+
+
 def get_root_job_by_job_id_repository(job_id: str):
     try:
         with SessionLocal() as session:
@@ -31,11 +48,13 @@ def get_root_job_by_job_id_repository(job_id: str):
             detail=f"Failed to get job status, Database read error: {str(e)}"
         ) from e
 
+
 def get_total_segment_mapping_count_by_job_id_repository(job_id: str):
     with SessionLocal() as session:
         return session.query(SegmentMapping).filter(
             SegmentMapping.root_job_id == job_id
         ).count()
+
 
 def get_segment_mapping_by_job_id_repository(
     job_id: str,
@@ -46,6 +65,7 @@ def get_segment_mapping_by_job_id_repository(
         return session.query(SegmentMapping).filter(
                 SegmentMapping.root_job_id == job_id
             ).offset(skip).limit(limit).all()
+
 
 def create_root_job_repository(job_id: str, total_segments: int, text_id: str):
     """Create a root job record in the database."""
