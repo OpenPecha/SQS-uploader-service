@@ -1,5 +1,6 @@
 import boto3
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 import logging
 import json
 import math
@@ -51,7 +52,7 @@ def send_segment_batches_to_sqs_service(
             )
             sqs_client.send_message(
                 QueueUrl=get("SQS_QUEUE_URL"),
-                MessageBody=json.dumps(message_body)
+                MessageBody=json.dumps(jsonable_encoder(message_body))
             )
             total_sent += 1
             logger.info(
@@ -90,6 +91,6 @@ def _prepare_message_body(
         "text_id": text_id,
         "batch_number": batch_number + 1,  # 1-indexed for readability
         "total_segments": total_segments,
-        "segment_ids": segments
+        "segments": segments
     }
     return message_body

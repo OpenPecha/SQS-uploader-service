@@ -35,7 +35,7 @@ def get_root_job_by_job_id_or_text_id_repository(job_id_or_text_id: str):
 def get_total_segment_mapping_count_by_job_id_repository(job_id: str):
     with SessionLocal() as session:
         return session.query(SegmentMapping).filter(
-            SegmentMapping.job_id == job_id
+            SegmentMapping.root_job_id == job_id
         ).count()
 
 def get_segment_mapping_by_job_id_repository(
@@ -45,7 +45,7 @@ def get_segment_mapping_by_job_id_repository(
 ):
     with SessionLocal() as session:
         return session.query(SegmentMapping).filter(
-                SegmentMapping.job_id == job_id
+                SegmentMapping.root_job_id == job_id
             ).offset(skip).limit(limit).all()
 
 def create_root_job_repository(job_id: str, total_segments: int, text_id: str):
