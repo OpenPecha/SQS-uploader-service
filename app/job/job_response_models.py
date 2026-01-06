@@ -1,4 +1,26 @@
+from winreg import EnumKey
 from pydantic import BaseModel
+from enum import Enum
+
+
+class SourceEnvironment(Enum):
+    DEVELOPMENT = "DEVELOPMENT"
+    PRODUCTION = "PRODUCTION"
+
+
+class DestinationEnvironment(Enum):
+    DEVELOPMENT = "DEVELOPMENT"
+    PRODUCTION = "PRODUCTION"
+    STAGING = "STAGING"
+    LOCAL = "LOCAL"
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    text_id: str
+    total_segments: int
+    completed_segments: int
+    status: str
 
 
 class Span(BaseModel):
@@ -58,3 +80,9 @@ class PaginatedSegmentRelationResponse(BaseModel):
     skip: int
     limit: int
     total: int
+
+
+class GenerateSegmentsRelationRequest(BaseModel):
+    text_ids: list[str]
+    source: SourceEnvironment
+    destination: DestinationEnvironment

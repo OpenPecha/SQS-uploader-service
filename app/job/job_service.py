@@ -18,7 +18,9 @@ from app.job.job_response_models import (
     TextIdJobResponse,
     SegmentationResponse,
     SegmentWithSpan,
-    Span
+    Span,
+    JobStatusResponse,
+    GenerateSegmentsRelationRequest
 )
 from app.job.job_sqs_service import (
     send_segment_batches_to_sqs_service
@@ -29,20 +31,26 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 500
 
 
-def get_job_status_service(job_id: str):
+def get_job_status_service(job_id: str) -> JobStatusResponse:
     """
     Get job status by job id or text id
     """
     job = get_root_job_by_job_id_repository(job_id)
 
-    return job
+    return JobStatusResponse(
+        job_id=job.job_id,
+        text_id=job.text_id,
+        total_segments=job.total_segments,
+        completed_segments=job.completed_segments,
+        status=job.status
+    )
 
 
 def get_all_segments_relation_by_text_id_service(
     text_id: str,
     skip: int = 0,
     limit: int = 100
-):
+) -> PaginatedSegmentRelationResponse:
     """
     Get all segments relation by text id
     """
@@ -70,9 +78,6 @@ def get_all_segments_relation_by_text_id_service(
         limit=limit
     )
 
-    print(paginated_relations)
-    print(len(paginated_relations))
-
     segments = _format_all_text_segment_relation_mapping(
         text_id=text_id,
         all_text_segment_relations=paginated_relations
@@ -88,17 +93,20 @@ def get_all_segments_relation_by_text_id_service(
 
 
 def generate_all_segments_relation_by_text_ids_service(
-    text_ids: list[str]
+    request: GenerateSegmentsRelationRequest
 ):
     """
     Get all segments relation by text ids
     """
+    text_ids = request.text_ids
     if text_ids is None:
         text_ids = []
 
     try:
 
-        db = Neo4JDatabase()
+        db = Neo4JDatabase(
+            source=request.source.value
+        )
 
         # Batch check alignment annotations for all text_ids in a single query
         logger.info(
@@ -145,7 +153,9 @@ def generate_all_segments_relation_by_text_ids_service(
             send_segment_batches_to_sqs_service(
                 root_job_id=job_id,
                 text_id=text_id,
-                segments=segments
+                segments=segments,
+                source_environment=request.source.value,
+                destination_environment=request.destination.value
             )
 
             logger.info(
