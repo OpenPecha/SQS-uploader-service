@@ -21,7 +21,7 @@ job_router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@job_router.get("/{job_id}/status")
+@job_router.get("/{job_id}/status", status_code=200)
 def get_job_status(job_id: str):
     """
     Get job status by job id
@@ -31,7 +31,7 @@ def get_job_status(job_id: str):
     )
 
 
-@job_router.get("/{text_id}/segments-relations")
+@job_router.get("/{text_id}/segments-relations", status_code=200)
 def get_all_segments_relation_by_text_id(
     text_id: str,
     skip: int = 0,
@@ -52,7 +52,7 @@ def get_all_segments_relation_by_text_id(
     )
 
 
-@job_router.post("/text-ids")
+@job_router.post("/text-ids", status_code=201)
 def generate_all_segments_relation_by_text_ids(
     text_ids: list[str] = None
 ) -> list[TextIdJobResponse]:
