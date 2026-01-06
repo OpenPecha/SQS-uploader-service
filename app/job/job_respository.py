@@ -68,6 +68,9 @@ def get_segment_mapping_by_job_id_repository(
 
 
 def create_root_job_repository(total_segments: int, text_id: str) -> str:
+    """
+    Create a root job
+    """
     try:
         with SessionLocal() as session:
             existing = (
