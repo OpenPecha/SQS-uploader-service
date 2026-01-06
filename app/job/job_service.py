@@ -186,9 +186,7 @@ def _create_root_job(total_segments: int, text_id: str) -> str:
     """
     Create a root job
     """
-    job_id = str(uuid4())
-    create_root_job_repository(
-        job_id=job_id,
+    job_id = create_root_job_repository(
         total_segments=total_segments,
         text_id=text_id
     )

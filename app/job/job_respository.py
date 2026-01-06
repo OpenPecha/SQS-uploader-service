@@ -67,24 +67,36 @@ def get_segment_mapping_by_job_id_repository(
             ).offset(skip).limit(limit).all()
 
 
-def create_root_job_repository(job_id: str, total_segments: int, text_id: str):
-    """Create a root job record in the database."""
+def create_root_job_repository(total_segments: int, text_id: str) -> str:
+    """
+    Create a root job
+    """
     try:
         with SessionLocal() as session:
-            session.add(
-                RootJob(
-                    job_id=job_id,
-                    text_id=text_id,
-                    total_segments=total_segments,
-                    completed_segments=0,
-                    status="QUEUED",
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                )
+            existing = (
+                session.query(RootJob)
+                .filter(RootJob.text_id == text_id)
+                .order_by(RootJob.created_at.desc())
+                .first()
             )
+            if existing:
+                return str(existing.job_id)
+
+            job = RootJob(
+                # job_id default will generate (uuid4) if you omit it
+                text_id=text_id,
+                total_segments=total_segments,
+                completed_segments=0,
+                status="QUEUED",
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            session.add(job)
             session.commit()
+            session.refresh(job)
+            return str(job.job_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Failed to create root job, Database write error"
+            detail="Failed to get/create root job, Database error"
         ) from e
