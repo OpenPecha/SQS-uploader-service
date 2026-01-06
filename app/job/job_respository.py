@@ -80,6 +80,12 @@ def create_root_job_repository(total_segments: int, text_id: str) -> str:
                 .first()
             )
             if existing:
+                existing.total_segments = total_segments
+                existing.completed_segments = 0
+                existing.status = "QUEUED"
+                existing.updated_at = datetime.now(timezone.utc)
+                session.commit()
+                session.refresh(existing)  # optional
                 return str(existing.job_id)
 
             job = RootJob(
