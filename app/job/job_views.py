@@ -5,7 +5,9 @@ import logging
 from fastapi import APIRouter
 from app.job.job_response_models import (
     TextIdJobResponse,
-    PaginatedSegmentRelationResponse
+    PaginatedSegmentRelationResponse,
+    JobStatusResponse,
+    GenerateSegmentsRelationRequest
 )
 from app.job.job_service import (
     get_job_status_service,
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @job_router.get("/{job_id}/status", status_code=200)
-def get_job_status(job_id: str):
+def get_job_status(job_id: str) -> JobStatusResponse:
     """
     Get job status by job id
     """
@@ -54,12 +56,12 @@ def get_all_segments_relation_by_text_id(
 
 @job_router.post("/text-ids", status_code=201)
 def generate_all_segments_relation_by_text_ids(
-    text_ids: list[str] = None
+    request: GenerateSegmentsRelationRequest
 ) -> list[TextIdJobResponse]:
     """
     Process multiple text_ids, check alignment annotations, create root jobs,
     and send batched segment messages to SQS.
     """
     return generate_all_segments_relation_by_text_ids_service(
-        text_ids=text_ids
+        request=request
     )

@@ -17,6 +17,8 @@ sqs_client = boto3.client(
 
 
 def send_segment_batches_to_sqs_service(
+    source_environment: str,
+    destination_environment: str,
     root_job_id: str,
     text_id: str,
     segments: list[dict],
@@ -47,7 +49,9 @@ def send_segment_batches_to_sqs_service(
                 text_id=text_id,
                 segments=batch_segments,
                 batch_number=batch_number,
-                total_segments=total_segments
+                total_segments=total_segments,
+                source_environment=source_environment,
+                destination_environment=destination_environment
             )
             sqs_client.send_message(
                 QueueUrl=get("SQS_QUEUE_URL"),
@@ -81,6 +85,8 @@ def _prepare_message_body(
     segments: list[dict],
     batch_number: int,
     total_segments: int,
+    source_environment: str,
+    destination_environment: str,
 ) -> dict:
     """
     Prepare the message body for the SQS message.
@@ -90,6 +96,8 @@ def _prepare_message_body(
         "text_id": text_id,
         "batch_number": batch_number + 1,  # 1-indexed for readability
         "total_segments": total_segments,
-        "segments": segments
+        "segments": segments,
+        "source_environment": source_environment,
+        "destination_environment": destination_environment
     }
     return message_body

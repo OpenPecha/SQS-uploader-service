@@ -13,13 +13,13 @@ load_dotenv(override=True)
 _neo4j_driver = None
 
 
-def get_neo4j_driver():
+def get_neo4j_driver(source: str):
     """Get or create a singleton Neo4j driver instance."""
     global _neo4j_driver
     if _neo4j_driver is None:
-        uri = os.environ.get("NEO4J_URI")
+        uri = os.environ.get(f"{source.upper()}_NEO4J_URI")
         user = os.environ.get("NEO4J_USER", "neo4j")  # Default to "neo4j" if not set
-        password = os.environ.get("NEO4J_PASSWORD")
+        password = os.environ.get(f"{source.upper()}_NEO4J_PASSWORD")
         _neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
         _neo4j_driver.verify_connectivity()
         logger.info("Neo4j driver connection established")
@@ -31,14 +31,14 @@ class Neo4JDatabase:
     Class to interact with the Neo4J database
     """
 
-    def __init__(self, neo4j_uri: str = None, neo4j_auth: tuple = None):
+    def __init__(self, source: str, neo4j_uri: str = None, neo4j_auth: tuple = None):
         """
         Initialize the Neo4JDatabase instance
         """
         if neo4j_uri and neo4j_auth:
             self.__driver = GraphDatabase.driver(neo4j_uri, auth=neo4j_auth)
         else:
-            self.__driver = get_neo4j_driver()
+            self.__driver = get_neo4j_driver(source=source)
         logger.info("Neo4JDatabase instance initialized with shared driver")
     
     def get_session(self):
