@@ -11,7 +11,6 @@ class DestinationEnvironment(Enum):
     DEVELOPMENT = "DEVELOPMENT"
     PRODUCTION = "PRODUCTION"
     STAGING = "STAGING"
-    LOCAL = "LOCAL"
 
 
 class JobStatusResponse(BaseModel):
