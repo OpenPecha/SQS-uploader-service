@@ -1,7 +1,5 @@
 # SQS Uploader Service — Documentation
 
-This document describes the SQS Uploader Service. The same content can be pasted into the GitHub repo wiki.
-
 ---
 
 ## Introduction
@@ -290,14 +288,3 @@ From **requirements.txt** (pinned versions):
 - **Alembic** — Schema migrations for the application database.
 
 ---
-
-## Task checklist (documentation coverage)
-
-- [x] **Task 1** — Service overview: purpose, role in pipeline, high-level workflow  
-- [x] **Task 2** — API & input handling: endpoints, request schema, text_ids, source/destination environments  
-- [x] **Task 3** — Data preparation: Neo4j alignment checks, segment fetching, pagination/batching logic  
-- [x] **Task 4** — Management: root_jobs creation/reset behavior in PostgreSQL  
-- [x] **Task 5** — SQS publishing: queue usage, message publishing flow, batching strategy  
-- [x] **Task 6** — Payload: message schema, field descriptions, and sample JSON  
-- [x] **Task 7** — Error handling & logging: validation, Neo4j/SQS failures, logging behavior  
-- [x] **Task 8** — Configuration & libraries: env vars, dependencies, frameworks used  
